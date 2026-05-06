@@ -1,4 +1,4 @@
-# 豆映集 · 豆瓣电影数据快照
+# 豆映集 · 豆瓣电影数据分析
 
 离线统计（Tkinter + pandas + matplotlib）与 Web 站点（Flask + MySQL + 爬虫）双端项目：离线侧处理本地 CSV；Web 侧抓取豆瓣榜单等信息入库，并提供列表、详情与统计图。
 
