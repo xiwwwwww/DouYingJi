@@ -101,7 +101,7 @@ python -m web_app.app
 ## 目录结构（主要）
 
 ```
-py_homework5.10/
+DouYingJi/
 ├── offline_app/           # 离线入口 main.py，数据 data_io.py，图表 charts.py
 ├── web_app/
 │   ├── app.py             # Flask 路由
