@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}豆瓣电影 · Web{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="brand" href="{{ url_for('index') }}">
+        <span class="brand-mark"></span>
+        <span class="brand-text">豆映集</span>
+      </a>
+      <nav class="nav">
+        <a href="{{ url_for('index') }}">首页</a>
+        <a href="{{ url_for('movies') }}">影片库</a>
+        <a href="{{ url_for('stats_page') }}">数据分析</a>
+        <a href="{{ url_for('viz_index') }}">可视化扩展</a>
+        <a class="nav-cta" href="{{ url_for('fetch_form') }}">抓取设置</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="foot">
+    数据仅供学习：排行榜与 Top250 页面解析得到年份、地区、类型等字段；字段可能不完整，以豆瓣为准。
+    <a href="https://movie.douban.com/chart" target="_blank" rel="noopener">chart</a> ·
+    <a href="https://movie.douban.com/top250" target="_blank" rel="noopener">top250</a>
+  </footer>
+</body>
+</html>

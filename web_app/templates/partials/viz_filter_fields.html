@@ -1,0 +1,37 @@
+{# 仅字段区，由外层 <form> 包裹；需变量：form_endpoint, st_choices, filter_years_sel, filter_tags_sel #}
+  <div class="multi-filter-grid">
+    <div class="multi-filter-col">
+      <span class="multi-filter-label">上映年份（可多选）</span>
+      <div class="chk-scroll chk-grid">
+        {% for y in st_choices.years %}
+        <label class="chk-item">
+          <input type="checkbox" name="year" value="{{ y }}" {% if y in filter_years_sel %}checked{% endif %}>
+          <span>{{ y }}</span>
+        </label>
+        {% endfor %}
+        {% if not st_choices.years %}
+        <span class="muted">库中暂无年份数据</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="multi-filter-col">
+      <span class="multi-filter-label">类型标签（可多选 · OR）</span>
+      <div class="chk-scroll chk-grid chk-grid--tags">
+        {% for t in st_choices.tags %}
+        <label class="chk-item">
+          <input type="checkbox" name="tag" value="{{ t }}" {% if t in filter_tags_sel %}checked{% endif %}>
+          <span>{{ t }}</span>
+        </label>
+        {% endfor %}
+        {% if not st_choices.tags %}
+        <span class="muted">库中暂无标签</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="filter-actions-row">
+    <button type="submit" class="btn-primary">更新图表</button>
+    <a class="btn-ghost" href="{{ url_for(form_endpoint) }}">清除条件</a>
+    <a class="btn-quiet" href="{{ url_for('viz_index') }}">← 可视化首页</a>
+    <a class="btn-quiet" href="{{ url_for('stats_page') }}">数据分析（四宫格）</a>
+  </div>

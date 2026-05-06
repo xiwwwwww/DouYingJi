@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}评分直方图{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>评分直方图（离散分档）</h1>
+  <p class="lead">将评分按 0.5 分宽度分桶计数，直观看出高分/低分堆叠情况；与数据分析页的<strong>核密度曲线</strong>对照阅读更佳。</p>
+</div>
+
+{% include "partials/viz_filters.html" %}
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+{% elif kpis and kpis.n %}
+<section class="kpi-grid kpi-grid--compact">
+  <div class="kpi-card">
+    <span class="kpi-num">{{ kpis.n }}</span>
+    <span class="kpi-label">筛选后样本条数</span>
+  </div>
+</section>
+
+{% if chart_b64 %}
+<div class="chart-wrap card">
+  <img class="chart chart--wide" src="data:image/png;base64,{{ chart_b64 }}" alt="评分直方图">
+</div>
+{% endif %}
+
+{% else %}
+<p class="empty-hint card">暂无数据。请先抓取入库，或调整筛选条件。</p>
+{% endif %}
+{% endblock %}

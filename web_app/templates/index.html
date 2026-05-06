@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}首页{% endblock %}
+{% block content %}
+
+{% if show_cleared %}
+<p class="flash-success card">已清空库内全部影片与抓取日志。</p>
+{% endif %}
+
+<section class="hero">
+  <div class="hero-inner">
+    <h1>豆瓣电影数据快照</h1>
+    <p class="hero-desc">抓取入库后按年份 / 地区 / 类型浏览，「数据分析」页可看汇总指标、图表并导出 CSV。</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="{{ url_for('fetch_form') }}">去抓取设置</a>
+      <a class="btn-ghost light" href="{{ url_for('movies') }}">浏览影片库</a>
+    </div>
+  </div>
+</section>
+
+{% if db_error %}
+  <div class="card alert-card">
+    <p class="error">数据库连接失败：{{ db_error }}</p>
+    <p>请配置 MySQL 库 <code>movie_douban</code> 与 <code>web_app/config.py</code> 中的账号。</p>
+  </div>
+{% else %}
+
+<div class="stats-row">
+  <div class="stat-card">
+    <span class="stat-num">{{ stats.records }}</span>
+    <span class="stat-label">库内影片</span>
+  </div>
+</div>
+
+<section class="section-block">
+  <h2 class="section-title">快捷入口</h2>
+  <div class="home-shortcuts">
+    <a class="home-shortcut card" href="{{ url_for('stats_page') }}">
+      <h3 class="home-shortcut__title">数据分析</h3>
+      <p class="home-shortcut__desc">汇总 KPI、评分/年份/地区等图表，支持条件筛选与导出 CSV。</p>
+      <span class="home-shortcut__cta">进入 →</span>
+    </a>
+    <a class="home-shortcut card" href="{{ url_for('viz_index') }}">
+      <h3 class="home-shortcut__title">可视化扩展</h3>
+      <p class="home-shortcut__desc">散点图、评分直方图、数据来源占比、自选横纵轴等扩展图表。</p>
+      <span class="home-shortcut__cta">进入 →</span>
+    </a>
+    <a class="home-shortcut card" href="{{ url_for('movies') }}">
+      <h3 class="home-shortcut__title">影片库</h3>
+      <p class="home-shortcut__desc">按年份、地区、类型筛选与排序，浏览海报卡片与详情。</p>
+      <span class="home-shortcut__cta">进入 →</span>
+    </a>
+    <a class="home-shortcut card" href="{{ url_for('fetch_form') }}">
+      <h3 class="home-shortcut__title">抓取设置</h3>
+      <p class="home-shortcut__desc">选择数据源与参数，将榜单等内容抓取入库。</p>
+      <span class="home-shortcut__cta">进入 →</span>
+    </a>
+  </div>
+</section>
+
+<section class="section-block">
+  <h2 class="section-title">最新入库预览</h2>
+  <div class="preview-grid">
+    {% for r in sample_rows %}
+    {% set detail_url = url_for('movie_detail', subject_id=r.subject_id) %}
+    <a class="preview-card preview-card--poster" href="{{ detail_url }}">
+      <div class="preview-poster">
+        {% if r.poster_local %}
+        <img class="preview-poster-img" src="{{ url_for('static', filename=r.poster_local) }}" alt="" loading="lazy" decoding="async">
+        {% elif r.poster_url %}
+        <img class="preview-poster-img" src="{{ r.poster_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+        {% else %}
+        <div class="preview-poster-ph" aria-hidden="true">🎬</div>
+        {% endif %}
+        <span class="preview-rank-badge">#{{ r.chart_rank }}</span>
+        {% if r.rating is not none %}
+        <span class="preview-rating-badge">{{ "%.1f"|format(r.rating|float) }}</span>
+        {% endif %}
+      </div>
+      <div class="preview-card-text">
+        <div class="preview-title">{{ r.title }}</div>
+        <div class="preview-meta">
+          {% if r.release_year %}{{ r.release_year }} · {% endif %}{{ r.region or '—' }}
+        </div>
+        {% if r.tags %}
+        <div class="preview-tags">
+          {% for tag in r.tags.split(',') %}
+            {% if loop.index <= 2 and tag.strip() %}<span class="pill pill-tag sm">{{ tag.strip() }}</span>{% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </a>
+    {% else %}
+    <p class="muted">暂无数据。</p>
+    {% endfor %}
+  </div>
+</section>
+
+{% endif %}
+{% endblock %}

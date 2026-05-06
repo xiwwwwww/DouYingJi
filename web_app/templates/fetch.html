@@ -1,0 +1,380 @@
+{% extends "base.html" %}
+{% block title %}抓取设置{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>抓取设置</h1>
+  <p class="lead">
+    本页用于配置<strong>豆瓣数据来源</strong>与<strong>入库条件</strong>：选择数据源类型后，仅展开该类抓取所需的字段；解析到的影片写入 MySQL 表
+    <code>douban_chart_movies</code>，并在 <code>crawl_log</code> 中记录本次抓取摘要。
+    提交表单后将跳转 <code>/fetch/run</code> 执行抓取，页面会弹出<strong>进度</strong>，完成后即可在「影片库」「数据分析」中使用库内数据。
+    请控制请求频率，遵守豆瓣站点规则。
+  </p>
+</div>
+
+{% if fetch_hint == 'empty_search' %}
+<p class="error" style="margin-bottom:12px;">请先填写「搜索 · 关键词」再抓取。</p>
+{% elif fetch_hint == 'clear_need_confirm' %}
+<p class="error" style="margin-bottom:12px;">清空操作未勾选确认框。</p>
+{% elif fetch_hint == 'clear_err' %}
+<p class="error" style="margin-bottom:12px;">清空失败，请检查数据库连接与权限。</p>
+{% endif %}
+
+<p class="hint">
+  先在下方选择<strong>页面类型</strong>，只会展开该模式需要的选项；筛选条件在<strong>下载完成后</strong>应用，再按「最多入库条数」截取。
+</p>
+<p class="fine">
+  每条入库会通过豆瓣<strong>短评 JSON</strong>抓热门短评，并尽量请求条目页补导演、主演；封面保存到 <code>static/posters/</code>。
+</p>
+
+<form class="fetch-form" method="get" action="{{ url_for('fetch_run') }}" id="js-fetch-form">
+  <section class="card">
+    <h2>数据源</h2>
+    <label class="row">
+      <span>页面类型</span>
+      <select name="source" id="js-fetch-source" aria-controls="fetch-context-hint">
+        <option value="search" {% if defaults.source == 'search' %}selected{% endif %}>关键词搜索（推荐，search.douban.com）</option>
+        <option value="chart" {% if defaults.source == 'chart' %}selected{% endif %}>排行榜首页多版块（新片 / 口碑 / 北美票房）</option>
+        <option value="top250" {% if defaults.source == 'top250' %}selected{% endif %}>Top250（最多约 250 条）</option>
+        <option value="explore" {% if defaults.source == 'explore' %}selected{% endif %}>探索 JSON（选电影接口分页）</option>
+      </select>
+    </label>
+  </section>
+
+  <div id="fetch-context-hint" class="card fetch-active-hint" role="status">
+    {% if defaults.source == 'search' %}
+    <strong>当前：关键词搜索</strong> — 请填写关键词，并设置翻页、列表起点（可选）。
+    {% elif defaults.source == 'chart' %}
+    <strong>当前：排行榜多版块</strong> — 与豆瓣「电影排行榜」首页相同 HTML，可择一新片榜 / 一周口碑 / 北美票房；条数因版块而异（常各约 10 条）。若遇反爬 403 请在浏览器打开一次豆瓣后再试。
+    {% elif defaults.source == 'top250' %}
+    <strong>当前：Top250</strong> — 可设列表起点 <code>start</code>（按页往后抓）。
+    {% elif defaults.source == 'explore' %}
+    <strong>当前：探索 JSON</strong> — 配置排序、标签、区间与分页起点；条目常缺年份。
+    {% else %}
+    <strong>当前：关键词搜索</strong> — 请填写关键词，并设置翻页、列表起点（可选）。
+    {% endif %}
+  </div>
+
+  <section class="card fetch-panel {% if defaults.source != 'search' %}fetch-panel--hidden{% endif %}" data-fetch-for="search">
+    <h2>关键词搜索</h2>
+    <label class="row">
+      <span>搜索关键词</span>
+      <input type="search" name="search_query" maxlength="64" placeholder="片名 / 导演 / 演员等，如：黑客帝国、诺兰" value="{{ defaults.search_query }}">
+    </label>
+    <label class="row">
+      <span>最多翻页数</span>
+      <input type="number" name="search_max_pages" min="1" max="80" value="{{ defaults.search_max_pages }}">
+    </label>
+    <label class="row">
+      <span>列表起点 start</span>
+      <input type="number" name="search_start_offset" min="0" max="50000" step="1" placeholder="0" value="{{ defaults.search_start_offset }}">
+    </label>
+    <p class="fine">每页约 15 条；翻页上限 80；起点对应接口 <code>start</code>（0 从第 1 条起，15、30… 约等于跳过前几页）。</p>
+  </section>
+
+  <section class="card fetch-panel {% if defaults.source != 'explore' %}fetch-panel--hidden{% endif %}" data-fetch-for="explore">
+    <h2>探索 JSON</h2>
+    <label class="row">
+      <span>排序 sort</span>
+      <select name="explore_sort">
+        <option value="U" {% if defaults.explore_sort == 'U' %}selected{% endif %}>U · 综合</option>
+        <option value="R" {% if defaults.explore_sort == 'R' %}selected{% endif %}>R · 评分</option>
+        <option value="T" {% if defaults.explore_sort == 'T' %}selected{% endif %}>T · 时间</option>
+        <option value="S" {% if defaults.explore_sort == 'S' %}selected{% endif %}>S · 热度</option>
+      </select>
+    </label>
+    <label class="row">
+      <span>类型标签 tags</span>
+      <input type="text" name="explore_tag" maxlength="16" placeholder="如：剧情、科幻（可留空）" value="{{ defaults.explore_tag }}">
+    </label>
+    <label class="row">
+      <span>评分区间 range</span>
+      <input type="text" name="explore_range" placeholder="默认 0,10" value="{{ defaults.explore_range }}">
+    </label>
+    <label class="row">
+      <span>年份区间 year_range</span>
+      <input type="text" name="explore_year_range" maxlength="32" placeholder="可选 2020,2024" value="{{ defaults.explore_year_range }}">
+    </label>
+    <label class="row">
+      <span>最多翻页数</span>
+      <input type="number" name="explore_max_pages" min="1" max="100" value="{{ defaults.explore_max_pages }}">
+    </label>
+    <label class="row">
+      <span>列表起点 start</span>
+      <input type="number" name="explore_start_offset" min="0" max="50000" step="1" placeholder="0" value="{{ defaults.explore_start_offset }}">
+    </label>
+    <p class="fine">探索接口条目常缺年份；勿把年份筛太严以免筛空。<code>start</code> 为分页起点。</p>
+  </section>
+
+  <section class="card fetch-panel {% if defaults.source != 'top250' %}fetch-panel--hidden{% endif %}" data-fetch-for="top250">
+    <h2>Top250</h2>
+    <label class="row">
+      <span>列表起点 start</span>
+      <input type="number" name="top250_start" min="0" max="249" step="1" placeholder="0" value="{{ defaults.top250_start }}">
+    </label>
+    <p class="fine">与 <code>top250?start=</code> 一致，每页 25 条；会自动对齐到 25 的倍数。</p>
+  </section>
+
+  <section class="card fetch-panel {% if defaults.source != 'chart' %}fetch-panel--hidden{% endif %}" data-fetch-for="chart">
+    <h2>排行榜版块</h2>
+    <p class="fine" style="margin-top:0;">数据均来自 <code>movie.douban.com/chart</code> 同一页，按标题拆成不同列表；<strong>更新节奏以豆瓣页内标注为准</strong>（新片/票房偏日更、一周口碑多为周更）。</p>
+    <label class="row">
+      <span>版块</span>
+      <select name="chart_mode">
+        <option value="new" {% if (defaults.chart_mode or 'new') == 'new' %}selected{% endif %}>新片榜（默认，与主榜常见展示一致）</option>
+        <option value="weekly" {% if defaults.chart_mode == 'weekly' %}selected{% endif %}>一周口碑榜</option>
+        <option value="na_boxoffice" {% if defaults.chart_mode == 'na_boxoffice' %}selected{% endif %}>北美票房榜</option>
+      </select>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2>数量</h2>
+    <label class="row">
+      <span>最多入库条数</span>
+      <input type="number" name="limit" min="1" max="2000" value="{{ defaults.limit }}" required>
+    </label>
+    <p class="fine">上限 2000；搜索/探索会先按「翻页上限 × 每页条数」拉候选，再筛选截取。</p>
+  </section>
+
+  <section class="card">
+    <h2>入库前筛选（可留空）</h2>
+    <label class="row">
+      <span>最低评分 ≥</span>
+      <input type="number" name="min_rating" min="0" max="10" step="0.1" placeholder="不限" value="{{ defaults.min_rating }}">
+    </label>
+    <label class="row">
+      <span>最高评分 ≤</span>
+      <input type="number" name="max_rating" min="0" max="10" step="0.1" placeholder="不限" value="{{ defaults.max_rating }}">
+    </label>
+    <label class="row">
+      <span>标题包含</span>
+      <input type="text" name="title_contains" maxlength="64" placeholder="在抓取结果中再筛标题" value="{{ defaults.title_contains }}">
+    </label>
+    <label class="row">
+      <span>最低评价人数 ≥</span>
+      <input type="number" name="min_votes" min="0" step="1" placeholder="不限（搜索模式通常有人数）" value="{{ defaults.min_votes }}">
+    </label>
+    <label class="row">
+      <span>年份从 ≥</span>
+      <input type="number" name="min_year" min="1900" max="2035" step="1" placeholder="不限（标题含年份时可用）" value="{{ defaults.min_year }}">
+    </label>
+    <label class="row">
+      <span>年份至 ≤</span>
+      <input type="number" name="max_year" min="1900" max="2035" step="1" placeholder="不限" value="{{ defaults.max_year }}">
+    </label>
+    <label class="row">
+      <span>类型标签包含</span>
+      <input type="text" name="tag_contains" maxlength="32" placeholder="匹配 tags 子串" value="{{ defaults.tag_contains }}">
+    </label>
+  </section>
+
+  <p class="actions">
+    <button type="submit" class="btn-primary" id="js-fetch-submit">开始抓取并入库</button>
+    <a class="btn-quiet" href="{{ url_for('fetch_run', source='search', search_query='黑客帝国', limit=40, search_max_pages=5) }}">快捷：搜索「黑客帝国」</a>
+    <a class="btn-quiet" href="{{ url_for('fetch_run', source='chart', chart_mode='new', limit=20) }}">快捷：新片榜 20 条</a>
+    <a class="btn-quiet" href="{{ url_for('fetch_run', source='chart', chart_mode='weekly', limit=15) }}">快捷：一周口碑 15 条</a>
+  </p>
+</form>
+
+<script>
+(function () {
+  var sel = document.getElementById("js-fetch-source");
+  if (!sel) return;
+  var panels = document.querySelectorAll("[data-fetch-for]");
+  var hint = document.getElementById("fetch-context-hint");
+  var hintHtml = {
+    search:
+      "<strong>当前：关键词搜索</strong> — 请填写关键词，并设置翻页、列表起点（可选）。",
+    chart:
+      "<strong>当前：排行榜多版块</strong> — 请选择新片榜 / 一周口碑 / 北美票房；单页解析，无分页参数。",
+    top250:
+      "<strong>当前：Top250</strong> — 可设列表起点 <code>start</code>（按页往后抓）。",
+    explore:
+      "<strong>当前：探索 JSON</strong> — 配置排序、标签、区间与分页起点；条目常缺年份。",
+  };
+  function sync() {
+    var v = sel.value || "search";
+    for (var i = 0; i < panels.length; i++) {
+      var el = panels[i];
+      var key = el.getAttribute("data-fetch-for");
+      el.classList.toggle("fetch-panel--hidden", key !== v);
+    }
+    if (hint && hintHtml[v]) {
+      hint.innerHTML = hintHtml[v];
+    }
+  }
+  sel.addEventListener("change", sync);
+  sync();
+})();
+</script>
+
+<section class="card danger-zone">
+  <h2>清空本地库</h2>
+  <p class="fine">删除 <code>douban_chart_movies</code> 中全部影片记录，并清空 <code>crawl_log</code> 抓取日志。操作<strong>不可恢复</strong>。</p>
+  <form method="post" action="{{ url_for('clear_library') }}" class="clear-form" onsubmit="return confirm('确定清空库内全部影片与抓取日志？此操作不可恢复。');">
+    <label class="clear-confirm">
+      <input type="checkbox" name="confirm" value="yes" required>
+      <span>我确认删除全部数据</span>
+    </label>
+    <button type="submit" class="btn-danger">清空全部内容</button>
+  </form>
+</section>
+
+<div
+  id="crawl-ui"
+  class="crawl-ui"
+  hidden
+  data-start-url="{{ url_for('fetch_start') }}"
+  data-index-url="{{ url_for('index') }}"
+  data-progress-url-tpl="{{ url_for('fetch_progress', job_id='__JOB__') }}"
+>
+  <div class="crawl-ui__backdrop" id="crawl-backdrop" role="presentation"></div>
+  <div class="crawl-ui__panel card" role="dialog" aria-modal="true" aria-labelledby="crawl-title">
+    <h2 id="crawl-title" class="crawl-ui__title">正在抓取</h2>
+    <p class="crawl-ui__status" id="crawl-status">准备中…</p>
+    <div class="crawl-progress-track" aria-hidden="true">
+      <div class="crawl-progress-fill" id="crawl-progress-fill"></div>
+    </div>
+    <p class="fine crawl-ui__hint" id="crawl-detail"></p>
+    <button type="button" class="btn-ghost crawl-ui__close" id="crawl-close" hidden>关闭</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("js-fetch-form");
+  var btn = document.getElementById("js-fetch-submit");
+  var root = document.getElementById("crawl-ui");
+  if (!form || !root) return;
+  var startUrl = root.getAttribute("data-start-url");
+  var indexUrl = root.getAttribute("data-index-url");
+  var tpl = root.getAttribute("data-progress-url-tpl") || "";
+  var fill = document.getElementById("crawl-progress-fill");
+  var statusEl = document.getElementById("crawl-status");
+  var detailEl = document.getElementById("crawl-detail");
+  var closeBtn = document.getElementById("crawl-close");
+  var pollTimer = null;
+
+  function progressUrl(jobId) {
+    return tpl.replace("__JOB__", jobId);
+  }
+
+  function setBar(pct, listPhaseWait) {
+    if (!fill) return;
+    fill.classList.toggle("crawl-progress-fill--list-wait", !!listPhaseWait);
+    if (listPhaseWait) {
+      fill.style.width = "";
+      return;
+    }
+    var n = typeof pct === "number" && !isNaN(pct) ? Math.min(100, Math.max(0, pct)) : 0;
+    fill.style.width = n + "%";
+  }
+
+  function showOverlay(on) {
+    root.hidden = !on;
+    if (btn) btn.disabled = on;
+  }
+
+  function stopPoll() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function applySnapshot(d) {
+    if (!d || !d.ok) return;
+    var msg = d.message || d.error || "";
+    if (d.phase === "enrich" && d.total > 0) {
+      statusEl.textContent = "入库 " + d.current + " / " + d.total;
+    } else if (d.phase === "list") {
+      statusEl.textContent = "获取候选列表…";
+    } else if (d.status === "done") {
+      statusEl.textContent = "已完成";
+    } else if (d.status === "error") {
+      statusEl.textContent = "出错";
+    } else {
+      statusEl.textContent = "处理中…";
+    }
+    detailEl.textContent = msg;
+    // 候选列表阶段：条为固定占位，不显示百分比、不做推进动画；入库阶段才按百分比走
+    var listWait = d.status === "running" && d.phase === "list";
+    var pct = typeof d.percent === "number" ? d.percent : null;
+    setBar(pct, listWait);
+  }
+
+  form.addEventListener("submit", function (e) {
+    if (!startUrl) return;
+    e.preventDefault();
+    stopPoll();
+    showOverlay(true);
+    closeBtn.hidden = true;
+    setBar(0, true);
+    statusEl.textContent = "启动任务…";
+    detailEl.textContent = "";
+
+    var fd = new FormData(form);
+    fetch(startUrl, { method: "POST", body: fd })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, json: j };
+        });
+      })
+      .then(function (pack) {
+        if (!pack.ok || !pack.json || !pack.json.ok || !pack.json.job_id) {
+          var rawErr = (pack.json && pack.json.error) || "";
+          var err =
+            rawErr === "empty_search"
+              ? "请选择搜索模式并填写关键词"
+              : rawErr || "无法启动抓取";
+          statusEl.textContent = "启动失败";
+          detailEl.textContent = err;
+          setBar(0, false);
+          closeBtn.hidden = false;
+          return;
+        }
+        var jobId = pack.json.job_id;
+
+        function pollOnce() {
+          fetch(progressUrl(jobId))
+            .then(function (r) {
+              return r.json();
+            })
+            .then(function (d) {
+              applySnapshot(d);
+              if (d.status === "done") {
+                stopPoll();
+                setBar(100, false);
+                statusEl.textContent =
+                  "完成，共处理 " + (d.rows_out != null ? d.rows_out : "") + " 条";
+                window.location.href = indexUrl;
+              }
+              if (d.status === "error") {
+                stopPoll();
+                setBar(0, false);
+                closeBtn.hidden = false;
+              }
+            })
+            .catch(function () {
+              stopPoll();
+              statusEl.textContent = "进度请求失败";
+              closeBtn.hidden = false;
+            });
+        }
+        pollOnce();
+        pollTimer = setInterval(pollOnce, 380);
+      })
+      .catch(function () {
+        statusEl.textContent = "网络错误";
+        closeBtn.hidden = false;
+      });
+  });
+
+  closeBtn.addEventListener("click", function () {
+    stopPoll();
+    showOverlay(false);
+  });
+})();
+</script>
+{% endblock %}

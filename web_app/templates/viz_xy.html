@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}多维散点 · 自选坐标轴{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>多维散点 · 自选横轴 / 纵轴</h1>
+  <p class="lead">
+    从库内数值字段中任选<strong>两个不同维度</strong>作为横轴（X）与纵轴（Y），绘制二维散点。
+    涉及<strong>评价人数</strong>时可勾选<strong>对数刻度</strong>以拉开量级差距。
+  </p>
+</div>
+
+<form method="get" action="{{ url_for('viz_xy_page') }}" class="viz-combined-form">
+  <input type="hidden" name="viz_submit" value="1">
+
+  <section class="card viz-xy-card">
+    <h2 class="section-title">坐标轴</h2>
+    <div class="viz-xy-grid">
+      <label class="viz-xy-field">
+        <span class="viz-xy-label">横轴（X）</span>
+        <select name="axis_x" class="viz-xy-select">
+          {% for key, label in axis_options %}
+          <option value="{{ key }}" {% if axis_x == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="viz-xy-field">
+        <span class="viz-xy-label">纵轴（Y）</span>
+        <select name="axis_y" class="viz-xy-select">
+          {% for key, label in axis_options %}
+          <option value="{{ key }}" {% if axis_y == key %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="viz-xy-log-row">
+      <label class="chk-item viz-xy-check">
+        <input type="checkbox" name="log_x" value="1" {% if log_x %}checked{% endif %}>
+        <span>横轴对数刻度（适合「评价人数」在 X 轴且跨度大）</span>
+      </label>
+      <label class="chk-item viz-xy-check">
+        <input type="checkbox" name="log_y" value="1" {% if log_y %}checked{% endif %}>
+        <span>纵轴对数刻度（适合「评价人数」在 Y 轴且跨度大）</span>
+      </label>
+    </div>
+    <p class="fine">四轴含义：评分 0～10、评价人数、上映年份、榜单名次（不同来源可能缺名次）。</p>
+  </section>
+
+  <section class="card filter-panel--compact">
+    <h2 class="section-title" style="margin-top:0;">样本范围（与「数据分析」相同）</h2>
+    {% include "partials/viz_filter_fields.html" %}
+  </section>
+</form>
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+{% elif axis_x == axis_y %}
+  <p class="error">请为横轴、纵轴选择两个不同的字段。</p>
+{% elif kpis and kpis.n %}
+<section class="kpi-grid kpi-grid--compact">
+  <div class="kpi-card">
+    <span class="kpi-num">{{ kpis.n }}</span>
+    <span class="kpi-label">筛选后总条数</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{{ pair_count }}</span>
+    <span class="kpi-label">同时有两维数值的点数</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{% if pearson_r is not none %}{{ "%.4f"|format(pearson_r) }}{% else %}—{% endif %}</span>
+    <span class="kpi-label">Pearson r（原始数值，非对数变换）</span>
+  </div>
+</section>
+
+{% if chart_b64 %}
+<div class="chart-wrap card">
+  <img class="chart chart--wide" src="data:image/png;base64,{{ chart_b64 }}" alt="多维散点图">
+</div>
+{% endif %}
+
+{% else %}
+<p class="empty-hint card">暂无数据。请先抓取入库，或调整筛选条件。</p>
+{% endif %}
+{% endblock %}

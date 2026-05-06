@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}数据来源占比{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>数据来源占比（饼图）</h1>
+  <p class="lead">每条记录的 <code>source_label</code> 记录抓取时使用的列表/接口；反映样本构成是否单一。</p>
+</div>
+
+{% include "partials/viz_filters.html" %}
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+{% elif kpis and kpis.n %}
+<section class="kpi-grid kpi-grid--compact">
+  <div class="kpi-card">
+    <span class="kpi-num">{{ kpis.n }}</span>
+    <span class="kpi-label">筛选后样本条数</span>
+  </div>
+</section>
+
+{% if chart_b64 %}
+<div class="chart-wrap card">
+  <p class="hint">饼图标签已按常见入口归类缩写；详细 URL 见下表。</p>
+  <img class="chart chart--pie" src="data:image/png;base64,{{ chart_b64 }}" alt="数据来源饼图">
+</div>
+{% endif %}
+
+{% if source_rows %}
+<section class="card viz-table-wrap">
+  <h2 class="section-title">原始分组</h2>
+  <table class="viz-table">
+    <thead>
+      <tr><th>source_label（数据库）</th><th>部数</th></tr>
+    </thead>
+    <tbody>
+      {% for row in source_rows %}
+      <tr>
+        <td class="viz-table-src">{{ row.src }}</td>
+        <td>{{ row.c }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% else %}
+<p class="empty-hint card">暂无数据。请先抓取入库，或调整筛选条件。</p>
+{% endif %}
+{% endblock %}

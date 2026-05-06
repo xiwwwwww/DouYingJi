@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}影片库{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>影片库</h1>
+  <p class="lead">按年份、地区、类型标签筛选；标题支持关键词搜索。可按榜单名次、年份、评分、人数或片名升降序排列。</p>
+</div>
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+{% else %}
+
+<form class="filter-panel card" method="get" action="{{ url_for('movies') }}">
+  <div class="filter-grid">
+    <label class="fld">
+      <span>年份</span>
+      <select name="year">
+        <option value="">全部</option>
+        {% for y in choices.years %}
+        <option value="{{ y }}" {% if filter_year == y %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="fld">
+      <span>地区</span>
+      <select name="region">
+        <option value="">全部</option>
+        {% for r in choices.regions %}
+        <option value="{{ r }}" {% if filter_region == r %}selected{% endif %}>{{ r }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="fld">
+      <span>类型标签</span>
+      <select name="tag">
+        <option value="">全部</option>
+        {% for t in choices.tags %}
+        <option value="{{ t }}" {% if filter_tag == t %}selected{% endif %}>{{ t }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="fld">
+      <span>最低评分 ≥</span>
+      <input type="number" name="min_rating" min="0" max="10" step="0.1" placeholder="不限" value="{{ filter_min_rating }}">
+    </label>
+    <label class="fld">
+      <span>排序依据</span>
+      <select name="sort">
+        <option value="rank" {% if filter_sort == 'rank' %}selected{% endif %}>榜单名次</option>
+        <option value="year" {% if filter_sort == 'year' %}selected{% endif %}>上映年份</option>
+        <option value="rating" {% if filter_sort == 'rating' %}selected{% endif %}>评分</option>
+        <option value="votes" {% if filter_sort == 'votes' %}selected{% endif %}>评价人数</option>
+        <option value="title" {% if filter_sort == 'title' %}selected{% endif %}>片名</option>
+      </select>
+    </label>
+    <label class="fld">
+      <span>顺序</span>
+      <select name="order">
+        <option value="asc" {% if filter_order == 'asc' %}selected{% endif %}>升序</option>
+        <option value="desc" {% if filter_order == 'desc' %}selected{% endif %}>降序</option>
+      </select>
+    </label>
+    <label class="fld fld-grow">
+      <span>标题搜索</span>
+      <input type="search" name="q" placeholder="片名关键词…" value="{{ filter_q }}">
+    </label>
+    <div class="fld fld-actions">
+      <button type="submit" class="btn-primary">筛选</button>
+      <a class="btn-ghost" href="{{ url_for('movies') }}">重置</a>
+      <a class="btn-quiet" href="{{ export_csv_href }}">导出 CSV（当前筛选）</a>
+    </div>
+  </div>
+</form>
+
+<p class="result-count">当前条件共 <strong>{{ rows|length }}</strong> 条（单次最多展示 400 条）</p>
+
+<div class="movie-grid">
+  {% for r in rows %}
+  {% set entry_url = r.page_url or ('https://movie.douban.com/subject/' ~ r.subject_id ~ '/') %}
+  {% set detail_url = url_for('movie_detail', subject_id=r.subject_id) %}
+  <article class="movie-card movie-card--poster">
+    <a class="movie-poster-wrap" href="{{ detail_url }}">
+      {% if r.poster_local %}
+      <img class="movie-poster" src="{{ url_for('static', filename=r.poster_local) }}" alt="" loading="lazy" decoding="async">
+      {% elif r.poster_url %}
+      <img class="movie-poster" src="{{ r.poster_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">
+      {% else %}
+      <div class="movie-poster-ph" aria-hidden="true"><span class="movie-poster-ph-icon">🎬</span></div>
+      {% endif %}
+      <span class="movie-card-rank">#{{ r.chart_rank }}</span>
+    </a>
+    <div class="movie-card-body">
+      <h2 class="movie-title"><a class="title-link" href="{{ detail_url }}">{{ r.title }}</a></h2>
+      <div class="movie-meta">
+        {% if r.release_year %}<span class="pill pill-year">{{ r.release_year }}</span>{% endif %}
+        {% if r.region %}<span class="pill pill-region">{{ r.region }}</span>{% endif %}
+        {% if r.tags %}
+          {% for tag in r.tags.split(',') %}
+            {% if loop.index <= 5 and tag.strip() %}<span class="pill pill-tag">{{ tag.strip() }}</span>{% endif %}
+          {% endfor %}
+        {% endif %}
+      </div>
+      <div class="movie-stats">
+        {% if r.rating is not none %}
+        <div class="rating-block">
+          <span class="rating">{{ "%.1f"|format(r.rating|float) }}</span>
+          <div class="star-track" aria-hidden="true"><span class="star-fill" style="width: {{ ((r.rating|float) * 10)|round(1) }}%;"></span></div>
+        </div>
+        {% else %}
+        <span class="rating muted">暂无分</span>
+        {% endif %}
+        {% if r.votes %}<span class="votes">{{ r.votes|fmt_num }} 人评价</span>{% endif %}
+      </div>
+      <div class="movie-foot">
+        <span class="sid">ID {{ r.subject_id }}</span>
+        <div class="movie-foot-right">
+          <a class="link-douban" href="{{ entry_url }}" target="_blank" rel="noopener">豆瓣</a>
+          <form
+            class="movie-delete-form"
+            method="post"
+            action="{{ url_for('movie_delete', subject_id=r.subject_id) }}"
+            onsubmit="return confirm('确定从本库删除该片？此操作不可恢复。');"
+          >
+            <input type="hidden" name="next" value="{{ request.full_path }}">
+            <button type="submit" class="btn-danger btn-danger--sm">删除</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </article>
+  {% else %}
+  <p class="empty-hint card">没有符合条件的影片。请调整筛选条件，或先到「抓取设置」入库数据。</p>
+  {% endfor %}
+</div>
+
+{% endif %}
+{% endblock %}

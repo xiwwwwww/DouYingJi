@@ -1,0 +1,4 @@
+{# 与数据分析页相同的多选筛选；form_endpoint 为 Flask 视图函数名字符串 #}
+<form class="filter-panel card filter-panel--compact" method="get" action="{{ url_for(form_endpoint) }}">
+{% include "partials/viz_filter_fields.html" %}
+</form>

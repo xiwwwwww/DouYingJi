@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}数据分析{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>数据分析</h1>
+  <p class="lead">
+    可多选<strong>上映年份</strong>与<strong>类型标签</strong>缩小样本；多个标签为<strong>或（OR）</strong>关系（命中任一即可），多个年份为<strong>且含于所选年份集合</strong>。
+    不勾选任何项表示<strong>全库</strong>。支持导出 CSV 做进一步统计。
+    更多图表类型见 <a href="{{ url_for('viz_index') }}">可视化扩展</a>（散点图、数据来源饼图、评分直方图、<a href="{{ url_for('viz_xy_page') }}">自选横纵轴</a>等）。
+  </p>
+</div>
+
+<form class="filter-panel card filter-panel--compact" method="get" action="{{ url_for('stats_page') }}">
+  <div class="multi-filter-grid">
+    <div class="multi-filter-col">
+      <span class="multi-filter-label">上映年份（可多选）</span>
+      <div class="chk-scroll chk-grid">
+        {% for y in st_choices.years %}
+        <label class="chk-item">
+          <input type="checkbox" name="year" value="{{ y }}" {% if y in filter_years_sel %}checked{% endif %}>
+          <span>{{ y }}</span>
+        </label>
+        {% endfor %}
+        {% if not st_choices.years %}
+        <span class="muted">库中暂无年份数据</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="multi-filter-col">
+      <span class="multi-filter-label">类型标签（可多选 · OR）</span>
+      <div class="chk-scroll chk-grid chk-grid--tags">
+        {% for t in st_choices.tags %}
+        <label class="chk-item">
+          <input type="checkbox" name="tag" value="{{ t }}" {% if t in filter_tags_sel %}checked{% endif %}>
+          <span>{{ t }}</span>
+        </label>
+        {% endfor %}
+        {% if not st_choices.tags %}
+        <span class="muted">库中暂无标签</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="filter-actions-row">
+    <button type="submit" class="btn-primary">更新分析</button>
+    <a class="btn-ghost" href="{{ url_for('stats_page') }}">清除条件</a>
+    {% if export_query %}
+    <a class="btn-primary export-csv" href="{{ url_for('stats_export_csv') }}?{{ export_query }}">导出 CSV</a>
+    {% else %}
+    <a class="btn-primary export-csv" href="{{ url_for('stats_export_csv') }}">导出 CSV（全库）</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+{% elif kpis and kpis.n %}
+<section class="kpi-grid">
+  <div class="kpi-card">
+    <span class="kpi-num">{{ kpis.n }}</span>
+    <span class="kpi-label">样本条数</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{% if kpis.avg_rating is not none %}{{ "%.2f"|format(kpis.avg_rating|float) }}{% else %}—{% endif %}</span>
+    <span class="kpi-label">平均评分</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{% if median_rating is not none %}{{ "%.2f"|format(median_rating) }}{% else %}—{% endif %}</span>
+    <span class="kpi-label">评分中位数</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{% if kpis.avg_votes is not none %}{{ "%.0f"|format(kpis.avg_votes|float) }}{% else %}—{% endif %}</span>
+    <span class="kpi-label">平均评价人数</span>
+  </div>
+  <div class="kpi-card">
+    <span class="kpi-num">{% if kpis.year_min is not none %}{{ kpis.year_min }}–{{ kpis.year_max }}{% else %}—{% endif %}</span>
+    <span class="kpi-label">上映年份跨度</span>
+  </div>
+  <div class="kpi-card kpi-card--wide">
+    <span class="kpi-num kpi-num--sm">
+      {% if corr_r is not none %}
+      Pearson r（评分×人数）≈ {{ "%.3f"|format(corr_r) }}（n={{ corr_n }}）
+      {% else %}
+      相关性样本不足或非线性（n={{ corr_n or 0 }}）
+      {% endif %}
+    </span>
+    <span class="kpi-label">探索性分析 · 人数与评分线性相关（仅供参考）</span>
+  </div>
+</section>
+
+{% if chart_b64 %}
+  <div class="chart-wrap card">
+    <p class="hint">matplotlib 四宫格：评分为<strong>连续核密度曲线</strong>（KDE）、年份柱状、Top 影片、地区占比。</p>
+    <img class="chart chart--dashboard" src="data:image/png;base64,{{ chart_b64 }}" alt="数据分析图表">
+  </div>
+{% endif %}
+
+{% if tag_top %}
+<section class="card tag-freq-block">
+  <h2 class="section-title">标签频次 Top{{ tag_top|length }}</h2>
+  <p class="fine">由 <code>tags</code> 逗号字段拆分计数，可与上图联动观察类型结构。</p>
+  <div class="tag-freq-grid">
+    {% for name, cnt in tag_top %}
+    <div class="tag-freq-item">
+      <span class="tag-freq-name">{{ name }}</span>
+      <span class="tag-freq-bar-wrap"><span class="tag-freq-bar" style="width: {{ (100 * cnt / tag_top[0][1])|round(1) }}%;"></span></span>
+      <span class="tag-freq-cnt">{{ cnt }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% else %}
+  <p class="empty-hint card">暂无数据。请先抓取入库，或调整筛选条件。</p>
+{% endif %}
+{% endblock %}

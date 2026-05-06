@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}可视化扩展{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>可视化扩展</h1>
+  <p class="lead">
+    本入口路径为 <strong><code>/viz</code></strong>（导航栏「可视化扩展」）。
+    「<a href="{{ url_for('stats_page') }}">数据分析</a>」侧重 KPI 与<strong>四宫格</strong>汇总图（评分 KDE、年份分布、榜单 Top、地区统计等）；
+    <strong>可视化扩展</strong>在此之外提供<strong>独立子页面</strong>，每种图表单独成页，便于按需扩展与分屏展示。
+    数据均来自 MySQL 当前库；各子页的<strong>筛选条件</strong>与数据分析一致——可多选<strong>上映年份</strong>、多选<strong>类型标签</strong>（标签之间为 OR），不勾选表示不按该项过滤。
+    图表由服务端 <code>matplotlib</code> 渲染为图片输出。
+  </p>
+</div>
+
+<div class="viz-hub-grid">
+  <a class="viz-hub-card card" href="{{ url_for('viz_scatter_page') }}">
+    <h2 class="viz-hub-card__title">评分 × 人数散点图</h2>
+    <p class="viz-hub-card__desc">观察评分与评价人数关系；人数轴为对数刻度，并附 Pearson 相关系数说明。</p>
+    <span class="viz-hub-card__cta">打开页面 →</span>
+  </a>
+  <a class="viz-hub-card card" href="{{ url_for('viz_sources_page') }}">
+    <h2 class="viz-hub-card__title">数据来源占比</h2>
+    <p class="viz-hub-card__desc">饼图展示排行榜 / Top250 / 搜索 / 探索 等不同抓取入口入库占比。</p>
+    <span class="viz-hub-card__cta">打开页面 →</span>
+  </a>
+  <a class="viz-hub-card card" href="{{ url_for('viz_rating_hist_page') }}">
+    <h2 class="viz-hub-card__title">评分直方图</h2>
+    <p class="viz-hub-card__desc">0.5 分一档的柱状分布，与数据分析页的连续 KDE 曲线互补。</p>
+    <span class="viz-hub-card__cta">打开页面 →</span>
+  </a>
+  <a class="viz-hub-card card" href="{{ url_for('viz_xy_page') }}">
+    <h2 class="viz-hub-card__title">多维散点 · 自选坐标轴</h2>
+    <p class="viz-hub-card__desc">横轴 / 纵轴可在「评分、人数、年份、名次」中任意组合；人数轴可选对数刻度。</p>
+    <span class="viz-hub-card__cta">打开页面 →</span>
+  </a>
+</div>
+
+<p class="fine card" style="margin-top:18px;">
+  返回 <a href="{{ url_for('stats_page') }}">数据分析</a> ·
+  <a href="{{ url_for('index') }}">首页</a>
+</p>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}{% if r %}{{ r.title }} · 详情{% else %}影片详情{% endif %}{% endblock %}
+{% block content %}
+
+{% if db_error %}
+  <p class="error">{{ db_error }}</p>
+  <p><a class="link-douban" href="{{ url_for('movies') }}">返回影片库</a></p>
+{% elif r %}
+{% set entry_url = r.page_url or ('https://movie.douban.com/subject/' ~ r.subject_id ~ '/') %}
+<article class="movie-detail card">
+  <div class="movie-detail-grid">
+    <div class="movie-detail-poster">
+      {% if r.poster_local %}
+      <img class="movie-detail-poster-img" src="{{ url_for('static', filename=r.poster_local) }}" alt="">
+      {% elif r.poster_url %}
+      <img class="movie-detail-poster-img" src="{{ r.poster_url }}" alt="" referrerpolicy="no-referrer">
+      {% else %}
+      <div class="movie-poster-ph movie-poster-ph--lg" aria-hidden="true"><span class="movie-poster-ph-icon">🎬</span></div>
+      {% endif %}
+    </div>
+    <div class="movie-detail-main">
+      <p class="detail-rank-muted">榜单序号 #{{ r.chart_rank }}</p>
+      <h1 class="detail-title">{{ r.title }}</h1>
+      <div class="detail-meta-row">
+        {% if r.release_year %}<span class="pill pill-year">{{ r.release_year }}</span>{% endif %}
+        {% if r.region %}<span class="pill pill-region">{{ r.region }}</span>{% endif %}
+        {% if r.duration %}<span class="pill pill-muted">{{ r.duration }}</span>{% endif %}
+        {% if r.rating is not none %}
+        <span class="detail-rating-num">{{ "%.1f"|format(r.rating|float) }}</span>
+        {% endif %}
+        {% if r.votes %}<span class="votes">{{ r.votes|fmt_num }} 人评价</span>{% endif %}
+      </div>
+      {% if r.tags %}
+      <div class="detail-tags">
+        {% for tag in r.tags.split(',') %}
+          {% if tag.strip() %}<span class="pill pill-tag">{{ tag.strip() }}</span>{% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if r.directors %}
+      <p class="detail-line"><span class="detail-k">导演</span>{{ r.directors }}</p>
+      {% endif %}
+      {% if r.casts %}
+      <p class="detail-line"><span class="detail-k">主演</span>{{ r.casts }}</p>
+      {% endif %}
+      {% if r.aliases %}
+      <p class="detail-line"><span class="detail-k">又名</span>{{ r.aliases }}</p>
+      {% endif %}
+      {% if r.imdb_id %}
+      <p class="detail-line"><span class="detail-k">IMDb</span>
+        <a href="https://www.imdb.com/title/{{ r.imdb_id }}/" target="_blank" rel="noopener">{{ r.imdb_id }}</a>
+      </p>
+      {% endif %}
+
+      <section class="detail-summary-block">
+        <h2 class="detail-section-title">热门短评摘录</h2>
+        <div class="detail-summary">{% if r.summary %}{{ r.summary }}{% else %}暂无短评摘录（接口失败或未抓取）。{% endif %}</div>
+      </section>
+
+      <p class="detail-actions">
+        <a class="btn-primary" href="{{ entry_url }}" target="_blank" rel="noopener">在豆瓣打开</a>
+        <a class="btn-ghost" href="{{ url_for('movies') }}">返回影片库</a>
+        <form
+          class="movie-delete-form"
+          method="post"
+          action="{{ url_for('movie_delete', subject_id=r.subject_id) }}"
+          onsubmit="return confirm('确定从本库删除该片？此操作不可恢复。');"
+        >
+          <input type="hidden" name="next" value="{{ url_for('movies') }}">
+          <button type="submit" class="btn-danger">从本库删除</button>
+        </form>
+      </p>
+    </div>
+  </div>
+</article>
+{% endif %}
+{% endblock %}
